@@ -142,7 +142,7 @@ cdef inline void _sort_M_slice(float[:, ::1] M,
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef int[:] identify_swaps(int[:, ::1] sorted_Z,
-                           double[:, ::1] sorted_D,
+                           float[:, ::1] sorted_D,
                            int[:, ::1] cluster_ranges):
     """
     Implements the Optimal Leaf Ordering algorithm described in 

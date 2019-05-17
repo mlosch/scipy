@@ -4,7 +4,7 @@ import numpy as np
 
 ctypedef struct Pair:
     int key
-    double value
+    float value
 
 
 cdef class Heap:
@@ -27,10 +27,10 @@ cdef class Heap:
     """
     cdef int[:] index_by_key
     cdef int[:] key_by_index
-    cdef double[:] values
+    cdef float[:] values
     cdef int size
 
-    def __init__(self, double[:] values):
+    def __init__(self, float[:] values):
         self.size = values.shape[0]
         self.index_by_key = np.arange(self.size, dtype=np.intc)
         self.key_by_index = np.arange(self.size, dtype=np.intc)
@@ -50,9 +50,9 @@ cdef class Heap:
         self.size -= 1
         self.sift_down(0)
 
-    cpdef void change_value(self, int key, double value):
+    cpdef void change_value(self, int key, float value):
         cdef int index = self.index_by_key[key]
-        cdef double old_value = self.values[index]
+        cdef float old_value = self.values[index]
         self.values[index] = value
         if value < old_value:
             self.sift_up(index)

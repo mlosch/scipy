@@ -210,7 +210,7 @@ def _copy_array_if_base_present(a):
     if a.base is not None:
         return a.copy()
     elif np.issubsctype(a, np.float32):
-        return np.array(a, dtype=np.double)
+        return np.array(a, dtype=np.float32)
     else:
         return a
 
@@ -691,7 +691,7 @@ def linkage(y, method='single', metric='euclidean', optimal_ordering=False):
     if method not in _LINKAGE_METHODS:
         raise ValueError("Invalid method: {0}".format(method))
 
-    y = _convert_to_double(np.asarray(y, order='c'))
+    y = _convert_to_float(np.asarray(y, order='c'))
 
     if y.ndim == 1:
         distance.is_valid_y(y, throw=True, name='y')
@@ -712,6 +712,7 @@ def linkage(y, method='single', metric='euclidean', optimal_ordering=False):
     if not np.all(np.isfinite(y)):
         raise ValueError("The condensed distance matrix must contain only "
                          "finite values.")
+    y = _convert_to_float(y)
 
     n = int(distance.num_obs_y(y))
     method_code = _LINKAGE_METHODS[method]
@@ -1181,7 +1182,7 @@ def optimal_leaf_ordering(Z, y, metric='euclidean'):
     Z = np.asarray(Z, order='c')
     is_valid_linkage(Z, throw=True, name='Z')
 
-    y = _convert_to_double(np.asarray(y, order='c'))
+    y = _convert_to_float(np.asarray(y, order='c'))
 
     if y.ndim == 1:
         distance.is_valid_y(y, throw=True, name='y')
@@ -1218,6 +1219,12 @@ def _convert_to_double(X):
         X = X.copy()
     return X
 
+def _convert_to_float(X):
+    if X.dtype != np.float32:
+        X = X.astype(np.float32)
+    if not X.flags.contiguous:
+        X = X.copy()
+    return X
 
 def cophenet(Z, Y=None):
     """
@@ -1258,10 +1265,10 @@ def cophenet(Z, Y=None):
     Zs = Z.shape
     n = Zs[0] + 1
 
-    zz = np.zeros((n * (n-1)) // 2, dtype=np.double)
+    zz = np.zeros((n * (n-1)) // 2, dtype=np.float32)
     # Since the C code does not support striding using strides.
     # The dimensions are used instead.
-    Z = _convert_to_double(Z)
+    Z = _convert_to_float(Z)
 
     _hierarchy.cophenetic_distances(Z, zz, int(n))
     if Y is None:
@@ -1349,7 +1356,7 @@ def inconsistent(Z, d=2):
     [Z] = _copy_arrays_if_base_present([Z])
 
     n = Zs[0] + 1
-    R = np.zeros((n - 1, 4), dtype=np.double)
+    R = np.zeros((n - 1, 4), dtype=np.float32)
 
     _hierarchy.inconsistent(Z, R, int(n), int(d))
     return R
@@ -1383,7 +1390,7 @@ def from_mlab_linkage(Z):
         A linkage matrix compatible with ``scipy.cluster.hierarchy``.
 
     """
-    Z = np.asarray(Z, dtype=np.double, order='c')
+    Z = np.asarray(Z, dtype=np.float32, order='c')
     Zs = Z.shape
 
     # If it's empty, return it.
@@ -1402,7 +1409,7 @@ def from_mlab_linkage(Z):
         raise ValueError('The format of the indices is not 1..N')
 
     Zpart[:, 0:2] -= 1.0
-    CS = np.zeros((Zs[0],), dtype=np.double)
+    CS = np.zeros((Zs[0],), dtype=np.float32)
     _hierarchy.calculate_cluster_sizes(Zpart, CS, int(Zs[0]) + 1)
     return np.hstack([Zpart, CS.reshape(Zs[0], 1)])
 
@@ -1431,7 +1438,7 @@ def to_mlab_linkage(Z):
         and the cluster indices are converted to ``1..N`` indexing.
 
     """
-    Z = np.asarray(Z, order='c', dtype=np.double)
+    Z = np.asarray(Z, order='c', dtype=np.float32)
     Zs = Z.shape
     if len(Zs) == 0 or (len(Zs) == 1 and Zs[0] == 0):
         return Z.copy()
@@ -1472,7 +1479,7 @@ def is_monotonic(Z):
 def is_valid_im(R, warning=False, throw=False, name=None):
     """Return True if the inconsistency matrix passed is valid.
 
-    It must be a :math:`n` by 4 array of doubles. The standard
+    It must be a :math:`n` by 4 array of floats. The standard
     deviations ``R[:,1]`` must be nonnegative. The link counts
     ``R[:,2]`` must be positive and no greater than :math:`n-1`.
 
@@ -1503,9 +1510,9 @@ def is_valid_im(R, warning=False, throw=False, name=None):
         if type(R) != np.ndarray:
             raise TypeError('Variable %spassed as inconsistency matrix is not '
                             'a numpy array.' % name_str)
-        if R.dtype != np.double:
-            raise TypeError('Inconsistency matrix %smust contain doubles '
-                            '(double).' % name_str)
+        if R.dtype != np.float32:
+            raise TypeError('Inconsistency matrix %smust contain floats '
+                            '(float).' % name_str)
         if len(R.shape) != 2:
             raise ValueError('Inconsistency matrix %smust have shape=2 (i.e. '
                              'be two-dimensional).' % name_str)
@@ -1538,7 +1545,7 @@ def is_valid_linkage(Z, warning=False, throw=False, name=None):
     """
     Check the validity of a linkage matrix.
 
-    A linkage matrix is valid if it is a two dimensional array (type double)
+    A linkage matrix is valid if it is a two dimensional array (type float)
     with :math:`n` rows and 4 columns.  The first two columns must contain
     indices between 0 and :math:`2n-1`. For a given row ``i``, the following
     two expressions have to hold:
@@ -1578,8 +1585,8 @@ def is_valid_linkage(Z, warning=False, throw=False, name=None):
         if type(Z) != np.ndarray:
             raise TypeError('Passed linkage argument %sis not a valid array.' %
                             name_str)
-        if Z.dtype != np.double:
-            raise TypeError('Linkage matrix %smust contain doubles.' % name_str)
+        if Z.dtype != np.float32:
+            raise TypeError('Linkage matrix %smust contain floats.' % name_str)
         if len(Z.shape) != 2:
             raise ValueError('Linkage matrix %smust have shape=2 (i.e. be '
                              'two-dimensional).' % name_str)
@@ -1867,7 +1874,7 @@ def fclusterdata(X, t, criterion='inconsistent',
     This function is similar to the MATLAB function ``clusterdata``.
 
     """
-    X = np.asarray(X, order='c', dtype=np.double)
+    X = np.asarray(X, order='c', dtype=np.float32)
 
     if type(X) != np.ndarray or len(X.shape) != 2:
         raise TypeError('The observation matrix X must be an n by m numpy '
@@ -2212,7 +2219,7 @@ def dendrogram(Z, p=30, truncate_mode=None, color_threshold=None,
           Note: ``'mtica'`` is an alias for ``'level'`` that's kept for
           backward compatibility.
 
-    color_threshold : double, optional
+    color_threshold : float, optional
         For brevity, let :math:`t` be the ``color_threshold``.
         Colors all the descendent links below a cluster node
         :math:`k` the same color if :math:`k` is the first node below
@@ -2296,7 +2303,7 @@ def dendrogram(Z, p=30, truncate_mode=None, color_threshold=None,
     no_labels : bool, optional
         When True, no labels appear next to the leaf nodes in the
         rendering of the dendrogram.
-    leaf_rotation : double, optional
+    leaf_rotation : float, optional
         Specifies the angle (in degrees) to rotate the leaf
         labels. When unspecified, the rotation is based on the number of
         nodes in the dendrogram (default is 0).
@@ -2867,14 +2874,14 @@ def maxdists(Z):
     Returns
     -------
     maxdists : ndarray
-        A ``(n-1)`` sized numpy array of doubles; ``MD[i]`` represents
+        A ``(n-1)`` sized numpy array of floats; ``MD[i]`` represents
         the maximum distance between any cluster (including
         singletons) below and including the node with index i. More
         specifically, ``MD[i] = Z[Q(i)-n, 2].max()`` where ``Q(i)`` is the
         set of all node indices below and including node i.
 
     """
-    Z = np.asarray(Z, order='c', dtype=np.double)
+    Z = np.asarray(Z, order='c', dtype=np.float32)
     is_valid_linkage(Z, throw=True, name='Z')
 
     n = Z.shape[0] + 1
@@ -2900,7 +2907,7 @@ def maxinconsts(Z, R):
     Returns
     -------
     MI : ndarray
-        A monotonic ``(n-1)``-sized numpy array of doubles.
+        A monotonic ``(n-1)``-sized numpy array of floats.
 
     """
     Z = np.asarray(Z, order='c')
